@@ -4,48 +4,39 @@ using UnityEngine;
 
 public class DFS : MonoBehaviour
 {
-    public static LinkedList<Step> steps;
-    public static Stack<TileBlock> open;
-    public static LinkedList<TileBlock> path;
-    public static List<TileBlock> seen;
+    public static LinkedList<Step> steps = new();
+    public static Stack<TileBlock> open = new();
+    public static Dictionary<TileBlock, TileBlock> parent = new();
 
     public static void FindPath(TileBlock startBlock, TileBlock endBlock)
     {
-        steps = new();
-        open = new();
-        path = new();
-        seen = new();
+        steps.Clear();
+        open.Clear();
+        parent.Clear();
 
         open.Push(startBlock);
+        parent[startBlock] = startBlock;
         while (open.Count > 0)
         {
             TileBlock curBlock = open.Pop();
-            path.AddLast(curBlock);
             if (curBlock != startBlock)
             {
-                steps.AddLast(new Step(StepType.VISIT, path.Last.Value, curBlock));
+                steps.AddLast(new Step(StepType.VISIT, curBlock));
             }
             if (curBlock == endBlock)
             {
                 return;
             }
-            bool canMove = false;
             foreach (TileMap.Node node in curBlock.Node.Neighbours)
             {
-                if (!seen.Contains(node.TileBlock))
+                if (!parent.ContainsKey(node.TileBlock))
                 {
-                    canMove = true;
-                    seen.Add(node.TileBlock);
-                    Step nextStep = new(StepType.SEE, curBlock, node.TileBlock);
-                    steps.AddLast(nextStep);
+                    parent[node.TileBlock] = curBlock;
+                    steps.AddLast(new Step(StepType.SEE, node.TileBlock));
                     open.Push(node.TileBlock);
                 }
             }
-            if (!canMove)
-            {
-                path.RemoveLast();
-            }
         }
-        open = null;
+        parent.Clear();
     }
 }

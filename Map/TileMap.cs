@@ -106,7 +106,18 @@ public class TileMap : MonoBehaviour
     public GameObject Player { get => player; set => player = value; }
     public VisualController VisualController { get => visualController; set => visualController = value; }
     public PathFinder PathFinder { get => pathFinder; set => pathFinder = value; }
-
+    public static int MoveableBlockAmount()
+    {
+        int cnt = 0;
+        foreach(Node node in graph)
+        {
+            if (node.Cost != 0)
+            {
+                cnt++;
+            }
+        }
+        return cnt;
+    }
     public void GenerateMap(int sizeX, int sizeY, bool isWeightGraph)
     {
         mapSizeX = sizeX;

@@ -14,11 +14,13 @@ public class VisualController : MonoBehaviour
     [SerializeReference] private Button nextStepButton;
     [SerializeReference] private Button refreshButton;
     [SerializeReference] private Slider speedSlider;
+    [SerializeReference] private StepDisplay stepDisplay;
 
     public Button RunControllButton { get => runControllButton; set => runControllButton = value; }
     public Button BackStepButton { get => backStepButton; set => backStepButton = value; }
     public Button NextStepButton { get => nextStepButton; set => nextStepButton = value; }
     public Button RefreshButton { get => refreshButton; set => refreshButton = value; }
+    public StepDisplay StepDisplay { get => stepDisplay; set => stepDisplay = value; }
 
     private void Awake()
     {
@@ -56,36 +58,39 @@ public class VisualController : MonoBehaviour
             }
         }
     }
-    void Done()
+    IEnumerator Done()
     {
         PathFinder.isFinding = false;
-        RefreshButtonClicked();
         runControllButton.interactable = false;
+        backStepButton.interactable = false;
+        yield return tileMap.Player.GetComponent<CharacterActions>().Move(PathFinder.path);
+        RefreshButtonClicked();
     }
     public void RunControllButtonClicked()
     {
         if (isRunning)
         {
             Stop();
+            UpdateInteracable(!isRunning);
         }
         else
         {
-            if (PathFinder.currentStep != null && PathFinder.currentStep.Next == null)
+            if (PathFinder.currentStep.Next == null)
             {
-                Done();
+                StartCoroutine(Done());
             }
             else
             {
                 Run();
+                UpdateInteracable(!isRunning);
             }
         }
-        UpdateInteracable(!isRunning);
         UpdateRunControllButtonText();
     }
     public void NextStep()
     {
         backStepButton.interactable = true;
-        TileBlock tileBlock = PathFinder.currentStep.Value.TargetBlock;
+        TileBlock tileBlock = PathFinder.currentStep.Value.EntryBlock;
         StepType stepType = PathFinder.currentStep.Value.Type;
         if (PathFinder.currentStep.Next != null)
         {
@@ -126,7 +131,7 @@ public class VisualController : MonoBehaviour
     public void BackStep()
     {
         nextStepButton.interactable = true;
-        TileBlock tileBlock = PathFinder.currentStep.Value.TargetBlock;
+        TileBlock tileBlock = PathFinder.currentStep.Value.EntryBlock;
         StepType stepType = PathFinder.currentStep.Value.Type;
         switch (stepType)
         {
@@ -168,6 +173,7 @@ public class VisualController : MonoBehaviour
         tileMap.RefreshMap();
         UpdateRunControllButtonText();
         UpdateInteracable(false);
+        stepDisplay.RefreshStepDisplay();
     }
     public void UpdateInteracable(bool status)
     {

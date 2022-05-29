@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
@@ -9,11 +9,12 @@ public class PathFinder : MonoBehaviour
     public static TileBlock startBlock;
     public static TileBlock endBlock;
     public static LinkedListNode<Step> currentStep;
-    public static LinkedList<Step> steps;
-    public static LinkedList<TileBlock> path;
+    public static LinkedList<Step> steps = new();
+    public static LinkedList<TileBlock> path = new();
     [SerializeReference] private TMP_Dropdown searchType;
     [SerializeReference] private TMP_Dropdown algorithms;
     [SerializeReference] private TMP_InputField heuristic;
+    [SerializeReference] private TMP_InputField depthLimit;
     [SerializeReference] private GraphSetup graphSetup;
     [SerializeReference] private GameObject character;
     [SerializeReference] private VisualController visualController;
@@ -42,7 +43,7 @@ public class PathFinder : MonoBehaviour
         startBlock = null;
         currentStep = null;
         endBlock = null;
-        steps = null;
+        steps.Clear();
     }
     public static void SetTarget(TileBlock startBlock, TileBlock endBlock)
     {
@@ -50,7 +51,7 @@ public class PathFinder : MonoBehaviour
         PathFinder.endBlock = endBlock;
         startBlock.SetStatus(TileStatus.START);
         endBlock.SetStatus(TileStatus.END);
-        steps = new();
+        steps.Clear();
     }
     public void UpdateAlgorithmOptions()
     {
@@ -90,51 +91,83 @@ public class PathFinder : MonoBehaviour
                 }
         }
     }
+    public void UpdateDepthLimitField()
+    {
+        if ((searchType.value == 0 && algorithms.value == 3)
+            || (searchType.value == 1 && algorithms.value == 2))
+        {
+            depthLimit.interactable = true;
+        }
+        else
+        {
+            depthLimit.interactable = false;
+        }
+    }
+    void MergePathToStep(LinkedList<Step> steps, Dictionary<TileBlock, TileBlock> parent)
+    {
+        PathFinder.steps = steps;
+        path.Clear();
+        if (parent.Count == 0)
+        {
+            return;
+        }
+        TileBlock entry = endBlock;
+        while (entry != startBlock)
+        {
+            path.AddFirst(entry);
+            entry = parent[entry];
+        }
+        foreach (TileBlock tileBlock in path)
+        {
+            steps.AddLast(new Step(StepType.MOVE, tileBlock));
+        }
+    }
     void FindByDFS()
     {
         DFS.FindPath(startBlock, endBlock);
-        steps = DFS.steps;
-        //if (DFS.open == null)
-        //{
-        //    return;
-        //}
-        //path = DFS.path;
-        //LinkedListNode<TileBlock> entry = path.First;
-        //steps.AddLast(new Step(StepType.MOVE, startBlock, entry.Value));
-        //entry = entry.Next;
-        //while (entry != null)
-        //{
-        //    steps.AddLast(new Step(StepType.MOVE, entry.Previous.Value, entry.Value));
-        //    entry = entry.Next;
-        //}
+        MergePathToStep(DFS.steps, DFS.parent);
     }
     void FindByBFS()
     {
-        return;
+        BFS.FindPath(startBlock, endBlock);
+        MergePathToStep(BFS.steps, BFS.parent);
     }
     void FindByUCS()
     {
-        return;
+        UCS.FindPath(startBlock, endBlock);
+        MergePathToStep(UCS.steps, UCS.parent);
     }
     void FindByIDS()
     {
-        return;
+        if (depthLimit.text == string.Empty)
+        {
+            depthLimit.text = IDS.depthLim.ToString();
+        }
+        else
+        {
+            IDS.depthLim = System.Int32.Parse(depthLimit.text);
+        }
+        IDS.FindPath(startBlock, endBlock);
+        MergePathToStep(IDS.steps, IDS.parent);
     }
     void FindByGreedy()
     {
-        return;
+        Greedy.FindPath(startBlock, endBlock);
+        MergePathToStep(Greedy.steps, Greedy.parent);
     }
     void FindByAStar()
     {
-        //return AStar.FindPath(character, startBlock, endBlock));
-        return;
+        AStar.FindPath(startBlock, endBlock);
+        MergePathToStep(AStar.steps, AStar.parent);
     }
     void FindByIDAStar()
     {
-        return;
+        AStar.FindPath(startBlock, endBlock);
+        MergePathToStep(AStar.steps, AStar.parent);
     }
     public void FindPath(TileBlock startBlock, TileBlock endBlock)
     {
+        isFinding = true;
         SetTarget(startBlock, endBlock);
         switch (searchType.value)
         {
@@ -167,19 +200,27 @@ public class PathFinder : MonoBehaviour
                     break;
                 }
         }
-        visualController.RunControllButton.interactable = true;
-        visualController.NextStepButton.interactable = true;
         visualController.RefreshButton.interactable = true;
         currentStep = steps.First;
+        
+        if (path.Count == 0)
+        {
+            visualController.StepDisplay.Display(steps, "- KHÔNG TÌM THẤY ĐƯỜNG ĐI!");
+        }
+        else
+        {
+            visualController.RunControllButton.interactable = true;
+            visualController.NextStepButton.interactable = true;
+            visualController.StepDisplay.Display(steps);
+        }
     }
     public IEnumerator Run()
     {
-        isFinding = true;
         while (isFinding)
         {
             if (VisualController.isRunning)
             {
-                currentStep.Value.TargetBlock.SetStatus(TileStatus.ENTRY);
+                currentStep.Value.EntryBlock.SetStatus(TileStatus.ENTRY);
                 yield return new WaitForSeconds(VisualController.delayTime);
                 visualController.NextStep();
                 yield return new WaitForSeconds(VisualController.delayTime);

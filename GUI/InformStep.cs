@@ -3,8 +3,8 @@ public class InformStep : Step
     private int currentCost;
     private int evaluateValue;
 
-    public InformStep(StepType type , TileBlock curBlock, TileBlock targetBlock, int currentCost, int evaluateValue)
-        : base(type, curBlock, targetBlock)
+    public InformStep(StepType type, TileBlock entryBlock, int currentCost, int evaluateValue)
+        : base(type, entryBlock)
     {
         this.currentCost = currentCost;
         this.evaluateValue = evaluateValue;

@@ -4,7 +4,8 @@ using UnityEngine;
 
 public class CharacterActions : MonoBehaviour
 {
-    private float rollSpeed = 5;
+    private float rollSpeed = 3;
+    public static bool isMoving = false;
 
     private void Awake()
     {
@@ -20,26 +21,10 @@ public class CharacterActions : MonoBehaviour
     }
     public IEnumerator Move(LinkedList<TileBlock> path)
     {
+        isMoving = true;
         TileBlock currentBlock = GetComponent<CharacterStats>().CurrentTileBlockStanding();
-        void Coloring(TileBlock tileBlock)
-        {
-            if (tileBlock == path.Last.Value)
-            {
-                tileBlock.SetStatus(TileStatus.START);
-            }
-            else if (tileBlock == path.First.Value)
-            {
-                tileBlock.SetStatus(TileStatus.END);
-            }
-            else
-            {
-                tileBlock.SetStatus(TileStatus.PATH);
-            }
-        }
         foreach (TileBlock block in path)
-        {
-            Coloring(block);
-            Vector3 dir = Vector3.zero;
+        {            Vector3 dir = Vector3.zero;
             if (block.Node.Position.x < currentBlock.Node.Position.x) dir = Vector3.left;
             if (block.Node.Position.x > currentBlock.Node.Position.x) dir = Vector3.right;
             if (block.Node.Position.y < currentBlock.Node.Position.y) dir = Vector3.down;
@@ -50,5 +35,6 @@ public class CharacterActions : MonoBehaviour
             currentBlock = block;
             yield return Roll(anchor, axis);
         }
+        isMoving = false;
     }
 }
