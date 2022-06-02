@@ -6,44 +6,47 @@ using TMPro;
 public class PathFinder : MonoBehaviour
 {
     public static bool isFinding;
+    public static bool isIterativeDepending;
     public static TileBlock startBlock;
     public static TileBlock endBlock;
-    public static LinkedListNode<Step> currentStep;
+    public static LinkedListNode<Step> currentStepNode;
     public static LinkedList<Step> steps = new();
     public static LinkedList<TileBlock> path = new();
+    public static int totalCost;
     [SerializeReference] private TMP_Dropdown searchType;
     [SerializeReference] private TMP_Dropdown algorithms;
-    [SerializeReference] private TMP_InputField heuristic;
-    [SerializeReference] private TMP_InputField depthLimit;
+    [SerializeReference] private TMP_Dropdown heuristicDr;
+    [SerializeReference] private TMP_InputField betaVal;
     [SerializeReference] private GraphSetup graphSetup;
     [SerializeReference] private GameObject character;
     [SerializeReference] private VisualController visualController;
-    private List<TMP_Dropdown.OptionData> uninformedSearch;
-    private List<TMP_Dropdown.OptionData> informedSearch;
-
+    private List<TMP_Dropdown.OptionData> uninformedSearchChoices;
+    private List<TMP_Dropdown.OptionData> informedSearchChoices;
+    private List<TMP_Dropdown.OptionData> heuristicChoices;
     private void Awake()
     {
         RefreshPathFinderStatus();
-        uninformedSearch = new();
-        informedSearch = new();
-        string[] searchType1 = { "DFS", "BFS", "UCS", "IDS" };
-        foreach (string type in searchType1)
-        {
-            uninformedSearch.Add(new TMP_Dropdown.OptionData(type));
-        }
-        string[] searchType2 = { "Greedy", "A*", "IDA*" };
-        foreach (string type in searchType2)
-        {
-            informedSearch.Add(new TMP_Dropdown.OptionData(type));
-        }
+        uninformedSearchChoices = new();
+        informedSearchChoices = new();
+        heuristicChoices = new();
+        string[] uninformedSearchs = { "DFS", "BFS", "UCS", "IDS" };
+        string[] informedSearchs = { "Greedy", "A*", "IDA*" };
+        string[] heuristics = { "Manhattan", "Euclidean", "Floyd" };
+        foreach (string type in uninformedSearchs)
+            uninformedSearchChoices.Add(new TMP_Dropdown.OptionData(type));
+        foreach (string type in informedSearchs)
+            informedSearchChoices.Add(new TMP_Dropdown.OptionData(type));
+        foreach (string type in heuristics)
+            heuristicChoices.Add(new TMP_Dropdown.OptionData(type));
     }
     public static void RefreshPathFinderStatus()
     {
         isFinding = false;
         startBlock = null;
-        currentStep = null;
+        currentStepNode = null;
         endBlock = null;
         steps.Clear();
+        totalCost = 0;
     }
     public static void SetTarget(TileBlock startBlock, TileBlock endBlock)
     {
@@ -52,6 +55,7 @@ public class PathFinder : MonoBehaviour
         startBlock.SetStatus(TileStatus.START);
         endBlock.SetStatus(TileStatus.END);
         steps.Clear();
+        totalCost = 0;
     }
     public void UpdateAlgorithmOptions()
     {
@@ -63,10 +67,10 @@ public class PathFinder : MonoBehaviour
         switch (searchType.value)
         {
             case 0:
-                UpdateOptionList(uninformedSearch);
+                UpdateOptionList(uninformedSearchChoices);
                 break;
             case 1:
-                UpdateOptionList(informedSearch);
+                UpdateOptionList(informedSearchChoices);
                 break;
         }
     }
@@ -75,33 +79,34 @@ public class PathFinder : MonoBehaviour
         switch (searchType.value)
         {
             case 0:
-                heuristic.text = string.Empty;
+                heuristicDr.ClearOptions();
+                heuristicDr.AddOptions(new List<TMP_Dropdown.OptionData>{ new TMP_Dropdown.OptionData("-- Heuristic --") });
+                heuristicDr.interactable = false;
                 break;
             case 1:
                 {
+                    heuristicDr.ClearOptions();
+                    heuristicDr.interactable = true;
                     if (graphSetup.WeightGraphToggle.isOn)
                     {
-                        heuristic.text = "Floyd";
+                        heuristicDr.AddOptions(heuristicChoices);
                     }
                     else
                     {
-                        heuristic.text = "Manhattan";
+                        heuristicDr.AddOptions(heuristicChoices.GetRange(0, 2));
                     }
                     break;
                 }
         }
     }
+    public void UpdateSelectedHeuristic()
+    {
+        Heuristic.type = heuristicDr.value;
+    }
     public void UpdateDepthLimitField()
     {
-        if ((searchType.value == 0 && algorithms.value == 3)
-            || (searchType.value == 1 && algorithms.value == 2))
-        {
-            depthLimit.interactable = true;
-        }
-        else
-        {
-            depthLimit.interactable = false;
-        }
+        betaVal.interactable = (searchType.value == 0 && algorithms.value == 3) 
+            || (searchType.value == 1 && algorithms.value == 2);
     }
     void MergePathToStep(LinkedList<Step> steps, Dictionary<TileBlock, TileBlock> parent)
     {
@@ -119,7 +124,8 @@ public class PathFinder : MonoBehaviour
         }
         foreach (TileBlock tileBlock in path)
         {
-            steps.AddLast(new Step(StepType.MOVE, tileBlock));
+            steps.AddLast(new Step(tileBlock, TileStatus.VISITED, TileStatus.PATH));
+            totalCost += tileBlock.TileNode.Cost;
         }
     }
     void FindByDFS()
@@ -139,14 +145,6 @@ public class PathFinder : MonoBehaviour
     }
     void FindByIDS()
     {
-        if (depthLimit.text == string.Empty)
-        {
-            depthLimit.text = IDS.depthLim.ToString();
-        }
-        else
-        {
-            IDS.depthLim = System.Int32.Parse(depthLimit.text);
-        }
         IDS.FindPath(startBlock, endBlock);
         MergePathToStep(IDS.steps, IDS.parent);
     }
@@ -162,8 +160,22 @@ public class PathFinder : MonoBehaviour
     }
     void FindByIDAStar()
     {
-        AStar.FindPath(startBlock, endBlock);
-        MergePathToStep(AStar.steps, AStar.parent);
+        int val = IDAStar.betaVal;
+        try
+        {
+            val = System.Int32.Parse(betaVal.text);
+        }
+        catch
+        {
+            val = 1;
+        }
+        finally
+        {
+            IDAStar.betaVal = val;
+            betaVal.text = val.ToString();
+        }
+        IDAStar.FindPath(startBlock, endBlock);
+        MergePathToStep(IDAStar.steps, IDAStar.parent);
     }
     public void FindPath(TileBlock startBlock, TileBlock endBlock)
     {
@@ -200,35 +212,58 @@ public class PathFinder : MonoBehaviour
                     break;
                 }
         }
-        visualController.RefreshButton.interactable = true;
-        currentStep = steps.First;
-        
+
         if (path.Count == 0)
         {
-            visualController.StepDisplay.Display(steps, "- KHÔNG TÌM THẤY ĐƯỜNG ĐI!");
+            steps.AddLast(new Step("- KHÔNG TÌM THẤY ĐƯỜNG ĐI!"));
         }
         else
         {
-            visualController.RunControllButton.interactable = true;
-            visualController.NextStepButton.interactable = true;
-            visualController.StepDisplay.Display(steps);
+            steps.AddLast(new Step($"- TÌM ĐƯỢC ĐƯỜNG ĐI VỚI CHI PHÍ: {totalCost}"));
         }
+        visualController.StepDisplay.Display();
+        EntryToStep(steps.First);
+        graphSetup.SetInteracable(false);
+        visualController.RefreshButton.interactable = true;
+        visualController.RunControllButton.interactable = true;
+        visualController.NextStepButton.interactable = true;
     }
-    public IEnumerator Run()
+    public static void EntryToStep(LinkedListNode<Step> stepNode)
     {
-        while (isFinding)
+        if (currentStepNode != null)
         {
-            if (VisualController.isRunning)
-            {
-                currentStep.Value.EntryBlock.SetStatus(TileStatus.ENTRY);
-                yield return new WaitForSeconds(VisualController.delayTime);
-                visualController.NextStep();
-                yield return new WaitForSeconds(VisualController.delayTime);
-            }
-            else
-            {
-                yield return null;
-            }
+            currentStepNode.Value.TextVisual.color = Color.black;
+            currentStepNode.Value.TextVisual.fontStyle = FontStyles.Normal;
         }
+        stepNode.Value.TextVisual.color = Color.red;
+        stepNode.Value.TextVisual.fontStyle = FontStyles.Bold;
+        if (stepNode.Value.IsAnnounce)
+            stepNode.Value.TextVisual.color = Color.red;
+        else
+        {
+            stepNode.Value.TextVisual.color = stepNode.Value.NewStatus;
+            stepNode.Value.EntryBlock.SetStatus(TileStatus.ENTRY);
+        }
+        currentStepNode = stepNode;
+    }
+    public IEnumerator RunTo(Step target)
+    {
+        visualController.UpdateInteracable(false);
+        int curOrder = currentStepNode.Value.TextVisual.GetComponentInParent<StepJumping>().Order;
+        int targetOrder = target.TextVisual.GetComponentInParent<StepJumping>().Order;
+        int distance = curOrder - targetOrder;
+        while (isFinding 
+            && VisualController.visualStatus == VisualController.VisualStatus.RUNNING 
+            && currentStepNode.Value != target)
+        {
+            if (distance < 0)
+                yield return visualController.NextStep();
+            else
+                yield return visualController.BackStep();
+        }
+        visualController.Stop((currentStepNode == steps.Last) ? 
+            VisualController.VisualStatus.DONECONFIRM : 
+            VisualController.VisualStatus.IDLE);
+        visualController.UpdateInteracable(true);
     }
 }

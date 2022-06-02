@@ -7,25 +7,35 @@ public class GraphSetup : MonoBehaviour
     [SerializeReference] private TMP_InputField widthField;
     [SerializeReference] private TMP_InputField heightField;
     [SerializeReference] private Toggle weightGraphToggle;
-
-    private TileMap tileMap;
+    [SerializeReference] private Button createGraphButton;
 
     public Toggle WeightGraphToggle { get => weightGraphToggle; set => weightGraphToggle = value; }
-
-    void Awake()
-    {
-        tileMap = map.GetComponent<TileMap>();
-    }
     public void CreateGraph()
     {
-        if (widthField.text == string.Empty)
+        static void Validate(out int mapSize, string text)
         {
-            widthField.text = Random.Range(5, 15).ToString();
+            try
+            {
+                mapSize = System.Int32.Parse(text);
+                if (mapSize > 25)
+                    mapSize = 25;
+            }
+            catch
+            {
+                mapSize = Random.Range(7, 20);
+            }
         }
-        if (heightField.text == string.Empty)
-        {
-            heightField.text = Random.Range(5, 15).ToString();
-        }
-        tileMap.GenerateMap(System.Int32.Parse(widthField.text), System.Int32.Parse(heightField.text), weightGraphToggle.isOn);
+        Validate(out int mapSizeX, widthField.text);
+        Validate(out int mapSizeY, heightField.text);
+        widthField.text = mapSizeX.ToString();
+        heightField.text = mapSizeY.ToString();
+        map.GetComponent<TileMap>().GenerateMap(mapSizeX, mapSizeY, weightGraphToggle.isOn);
+    }
+    public void SetInteracable(bool status)
+    {
+        widthField.interactable = status;
+        heightField.interactable = status;
+        weightGraphToggle.interactable = status;
+        createGraphButton.interactable = status;
     }
 }

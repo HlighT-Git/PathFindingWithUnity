@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class CharacterActions : MonoBehaviour
 {
-    private float rollSpeed = 3;
     public static bool isMoving = false;
 
     private void Awake()
@@ -13,6 +12,8 @@ public class CharacterActions : MonoBehaviour
     }
     private IEnumerator Roll(Vector3 anchor, Vector3 axis)
     {
+        float rollSpeed = 10 - 10 * VisualController.delayTime / 0.2f;
+        rollSpeed = rollSpeed < 1 ? 1 : rollSpeed;
         for (int i = 0; i < 90 / rollSpeed; i++)
         {
             transform.RotateAround(anchor, axis, rollSpeed);
@@ -25,12 +26,12 @@ public class CharacterActions : MonoBehaviour
         TileBlock currentBlock = GetComponent<CharacterStats>().CurrentTileBlockStanding();
         foreach (TileBlock block in path)
         {            Vector3 dir = Vector3.zero;
-            if (block.Node.Position.x < currentBlock.Node.Position.x) dir = Vector3.left;
-            if (block.Node.Position.x > currentBlock.Node.Position.x) dir = Vector3.right;
-            if (block.Node.Position.y < currentBlock.Node.Position.y) dir = Vector3.down;
-            if (block.Node.Position.y > currentBlock.Node.Position.y) dir = Vector3.up;
+            if (block.TileNode.Position.x < currentBlock.TileNode.Position.x) dir = Vector3.left;
+            if (block.TileNode.Position.x > currentBlock.TileNode.Position.x) dir = Vector3.right;
+            if (block.TileNode.Position.y < currentBlock.TileNode.Position.y) dir = Vector3.down;
+            if (block.TileNode.Position.y > currentBlock.TileNode.Position.y) dir = Vector3.up;
             if (dir == Vector3.zero) continue;
-            Vector3 anchor = (currentBlock.Node.Position + block.Node.Position + Vector3.back) * 0.5f;
+            Vector3 anchor = (currentBlock.TileNode.Position + block.TileNode.Position + Vector3.back) * 0.5f;
             Vector3 axis = Vector3.Cross(Vector3.back, dir);
             currentBlock = block;
             yield return Roll(anchor, axis);

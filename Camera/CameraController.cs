@@ -21,8 +21,6 @@ public class CameraController : MonoBehaviour
         newRotation = transform.rotation;
         newZoom = cameraTransform.localPosition;
     }
-
-    // Update is called once per frame
     void Update()
     {
         HandleMouseInput();
@@ -32,27 +30,6 @@ public class CameraController : MonoBehaviour
         if (OnMouse.hoverABlock && Input.mouseScrollDelta.y != 0)
         {
             newZoom += Input.mouseScrollDelta.y * transform.forward;
-        }
-        if (Input.GetMouseButtonDown(0))
-        {
-            Plane plane = new Plane(Vector3.up, Vector3.zero);
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            float entry;
-            if (plane.Raycast(ray, out entry))
-            {
-                dragStartPosition = ray.GetPoint(entry);
-            }
-        }
-        if (Input.GetMouseButton(0))
-        {
-            Plane plane = new Plane(Vector3.up, Vector3.zero);
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            float entry;
-            if (plane.Raycast(ray, out entry))
-            {
-                dragCurrentPosition = ray.GetPoint(entry);
-                newPosition = transform.position + dragStartPosition - dragCurrentPosition;
-            }
         }
         if (Input.GetMouseButtonDown(2))
         {
@@ -68,7 +45,6 @@ public class CameraController : MonoBehaviour
             else
                 newRotation *= Quaternion.Euler(Vector3.left * (diff.y / 5f));
         }
-        //transform.position = Vector3.Lerp(transform.position, newPosition, Time.deltaTime * 2);
         transform.rotation = Quaternion.Lerp(transform.rotation, newRotation, Time.deltaTime * 2);
         cameraTransform.localPosition = Vector3.Lerp(cameraTransform.localPosition, newZoom, Time.deltaTime * 2);
     }

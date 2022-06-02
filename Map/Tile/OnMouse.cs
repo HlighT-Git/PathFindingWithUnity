@@ -15,7 +15,7 @@ public class OnMouse : MonoBehaviour
 
     private void OnMouseDown()
     {
-        TileMap tilemap = tileBlockParent.Tilemap;
+        TileMap tilemap = tileBlockParent.TileMap;
         if (PathFinder.isFinding
             || TileStatus.Match(tileBlockParent.Status,
             TileStatus.UNMOVABLE,
@@ -31,7 +31,7 @@ public class OnMouse : MonoBehaviour
         }
         TileBlock startBlock = tilemap.Player.GetComponent<CharacterStats>().CurrentTileBlockStanding();
         TileBlock endBlock = tileBlockParent;
-        tileBlockParent.Tilemap.PathFinder.FindPath(startBlock, endBlock);
+        tileBlockParent.TileMap.PathFinder.FindPath(startBlock, endBlock);
     }
     private void OnMouseEnter()
     {
@@ -51,13 +51,13 @@ public class OnMouse : MonoBehaviour
         {
             tileBlockParent.SetStatus(previousStatus);
         }
-        GameObject player = tileBlockParent.Tilemap.Player;
+        GameObject player = tileBlockParent.TileMap.Player;
         if (Input.GetMouseButton(1) && !PathFinder.isFinding)
         {
             if (player.transform.position.x != tileBlockParent.transform.position.x
                 || player.transform.position.y != tileBlockParent.transform.position.y)
             {
-                tileBlockParent.Node.ChangeStatus();
+                tileBlockParent.TileNode.ChangeStatus();
             }
         }
     }

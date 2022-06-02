@@ -1,29 +1,25 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
 
-public class PriorityQueue
+public class PriorityQueue <T> where T : IComparable<T>
 {
-    private List<TileBlock> nodeList;
-    public List<TileBlock> NodeList { get => nodeList; set => nodeList = value; }
+    private List<T> nodes;
     public int Count
     {
-        get => nodeList.Count - 1;
+        get => nodes.Count - 1;
     }
     public PriorityQueue()
     {
-        nodeList = new();
-        nodeList.Add(null);
+        nodes = new();
+        nodes.Add(default);
     }
     private void SwapNode(int i, int j)
     {
-        TileBlock tmp = nodeList[i];
-        nodeList[i] = nodeList[j];
-        nodeList[j] = tmp;
-    }
-    private int NodeValue(int index)
-    {
-        return nodeList[index].Node.SearchCost.Value;
+        T tmp = nodes[i];
+        nodes[i] = nodes[j];
+        nodes[j] = tmp;
     }
     private void MinHeap(int i)
     {
@@ -31,10 +27,10 @@ public class PriorityQueue
         int left = 2 * i;
         int right = 2 * i + 1;
 
-        if (left <= Count && NodeValue(left) < NodeValue(smallest))
+        if (left <= Count && nodes[left].CompareTo(nodes[smallest]) < 0)
             smallest = left;
 
-        if (right <= Count && NodeValue(right) < NodeValue(smallest))
+        if (right <= Count && nodes[right].CompareTo(nodes[smallest]) < 0)
             smallest = right;
 
         if (smallest != i)
@@ -43,36 +39,41 @@ public class PriorityQueue
             MinHeap(smallest);
         }
     }
-    public bool Contains(TileBlock tileBlock)
+    public bool Contains(T node)
     {
-        return nodeList.Contains(tileBlock);
+        return nodes.Contains(node);
     }
-    public void Enqueue(TileBlock tileBlock, int distance, int evaluation)
+    public void Enqueue(T node)
     {
-        tileBlock.Node.SearchCost = new KeyValuePair<int, int>(distance, evaluation);
-        nodeList.Add(tileBlock);
+        nodes.Add(node);
         int i = Count;
-        while (i > 1 && NodeValue(i / 2) > NodeValue(i))
+        while (i > 1 && nodes[i / 2].CompareTo(nodes[i]) > 0)
         {
             SwapNode(i, i / 2);
             i /= 2;
         }
     }
-    public TileBlock Dequeue()
+    public T Dequeue()
     {
         if (Count == 0)
         {
             Debug.Log("Priority Queue empty!");
-            return nodeList[0];
+            return default;
         }
-        TileBlock node = nodeList[1];
+        T node = nodes[1];
         SwapNode(1, Count);
-        nodeList.RemoveAt(Count);
+        nodes.RemoveAt(Count);
         MinHeap(1);
         return node;
     }
     public void Clear()
     {
-        nodeList.Clear();
+        nodes.Clear();
+    }
+
+    public void Remove(T node)
+    {
+        if (Contains(node))
+            nodes.Remove(node);
     }
 }

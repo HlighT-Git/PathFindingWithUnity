@@ -5,7 +5,14 @@ using TMPro;
 using UnityEngine.UI;
 public class VisualController : MonoBehaviour
 {
-    public static bool isRunning = false;
+    public enum VisualStatus
+    {
+        IDLE,
+        RUNNING,
+        DONECONFIRM
+    }
+    public static VisualStatus visualStatus;
+    public static IEnumerator runProcess;
     public static float delayTime;
     [SerializeReference] private TileMap tileMap;
     [SerializeReference] private PathFinder pathFinder;
@@ -15,12 +22,15 @@ public class VisualController : MonoBehaviour
     [SerializeReference] private Button refreshButton;
     [SerializeReference] private Slider speedSlider;
     [SerializeReference] private StepDisplay stepDisplay;
+    [SerializeReference] private GraphSetup graphSetup;
+
 
     public Button RunControllButton { get => runControllButton; set => runControllButton = value; }
     public Button BackStepButton { get => backStepButton; set => backStepButton = value; }
     public Button NextStepButton { get => nextStepButton; set => nextStepButton = value; }
     public Button RefreshButton { get => refreshButton; set => refreshButton = value; }
     public StepDisplay StepDisplay { get => stepDisplay; set => stepDisplay = value; }
+    public PathFinder PathFinder { get => pathFinder; set => pathFinder = value; }
 
     private void Awake()
     {
@@ -30,155 +40,158 @@ public class VisualController : MonoBehaviour
     {
         delayTime = speedSlider.maxValue - speedSlider.value;
     }
-    void Stop()
+    public void Stop(VisualStatus vs)
     {
-        isRunning = false;
-        StopCoroutine(pathFinder.Run());
+        visualStatus = vs;
+        UpdateRunControllButtonText();
     }
-    void Run()
+    public void Run(Step step)
     {
-        isRunning = true;
-        StartCoroutine(pathFinder.Run());
+        visualStatus = VisualStatus.RUNNING;
+        runProcess = pathFinder.RunTo(step);
+        StartCoroutine(runProcess);
+        UpdateRunControllButtonText();
     }
     void UpdateRunControllButtonText()
     {
-        if (isRunning)
+        string text = string.Empty;
+        switch (visualStatus)
         {
-            runControllButton.GetComponentInChildren<TextMeshProUGUI>().text = "Dừng";
+            case VisualStatus.RUNNING:
+                text = "Dừng";
+                break;
+            case VisualStatus.IDLE:
+                text = "Chạy";
+                break;
+            case VisualStatus.DONECONFIRM:
+                text = "Xong!";
+                break;
         }
-        else
-        {
-            if (PathFinder.currentStep != null && PathFinder.currentStep.Next == null)
-            {
-                runControllButton.GetComponentInChildren<TextMeshProUGUI>().text = "Xong!";
-            }
-            else
-            {
-                runControllButton.GetComponentInChildren<TextMeshProUGUI>().text = "Chạy";
-            }
-        }
+        runControllButton.GetComponentInChildren<TextMeshProUGUI>().text = text;
     }
     IEnumerator Done()
     {
-        PathFinder.isFinding = false;
         runControllButton.interactable = false;
         backStepButton.interactable = false;
+        visualStatus = VisualStatus.IDLE;
         yield return tileMap.Player.GetComponent<CharacterActions>().Move(PathFinder.path);
+        PathFinder.isFinding = false;
         RefreshButtonClicked();
     }
     public void RunControllButtonClicked()
     {
-        if (isRunning)
+        switch (visualStatus)
         {
-            Stop();
-            UpdateInteracable(!isRunning);
-        }
-        else
-        {
-            if (PathFinder.currentStep.Next == null)
-            {
+            case VisualStatus.RUNNING:
+                {
+                    Stop(VisualStatus.IDLE);
+                    break;
+                }
+            case VisualStatus.IDLE:
+                {
+                    Run(PathFinder.steps.Last.Value);
+                    break;
+                }
+            case VisualStatus.DONECONFIRM:
                 StartCoroutine(Done());
-            }
-            else
-            {
-                Run();
-                UpdateInteracable(!isRunning);
-            }
+                break;
         }
-        UpdateRunControllButtonText();
     }
-    public void NextStep()
+    public void NextStepButtonClicked()
     {
-        backStepButton.interactable = true;
-        TileBlock tileBlock = PathFinder.currentStep.Value.EntryBlock;
-        StepType stepType = PathFinder.currentStep.Value.Type;
-        if (PathFinder.currentStep.Next != null)
-        {
-            switch (stepType)
-            {
-                case StepType.SEE:
-                    if (tileBlock != PathFinder.endBlock)
-                    {
-                        tileBlock.SetStatus(TileStatus.SEEN);
-                    }
-                    break;
-                case StepType.VISIT:
-                    if (tileBlock != PathFinder.endBlock)
-                    {
-                        tileBlock.SetStatus(TileStatus.VISITED);
-                    }
-                    break;
-                case StepType.SEEAGAIN:
-                    tileBlock.SetStatus(TileStatus.SEEN);
-                    break;
-                case StepType.MOVE:
-                      tileBlock.SetStatus(TileStatus.PATH);
-                    break;
-            }
-            PathFinder.currentStep = PathFinder.currentStep.Next;
-        }
-        else
+        StartCoroutine(NextStep());
+    }
+    public IEnumerator NextStep()
+    {
+        if (visualStatus != VisualStatus.RUNNING)
         {
             nextStepButton.interactable = false;
-            Stop();
-            UpdateRunControllButtonText();
-        }
-        if (tileBlock == PathFinder.endBlock)
-        {
-            tileBlock.SetStatus(TileStatus.END);
-        }
-    }
-    public void BackStep()
-    {
-        nextStepButton.interactable = true;
-        TileBlock tileBlock = PathFinder.currentStep.Value.EntryBlock;
-        StepType stepType = PathFinder.currentStep.Value.Type;
-        switch (stepType)
-        {
-            case StepType.SEE:
-                if (tileBlock != PathFinder.endBlock)
-                {
-                    tileBlock.SetStatus(TileStatus.NORMAL);
-                }
-                break;
-            case StepType.VISIT:
-                if (tileBlock != PathFinder.endBlock)
-                {
-                    tileBlock.SetStatus(TileStatus.SEEN);
-                }
-                break;
-            case StepType.SEEAGAIN:
-                tileBlock.SetStatus(TileStatus.VISITED);
-                break;
-            case StepType.MOVE:
-                if (tileBlock != PathFinder.endBlock)
-                {
-                    tileBlock.SetStatus(TileStatus.VISITED);
-                }
-                break;
-        }
-        if (PathFinder.currentStep.Previous != null)
-        {
-            PathFinder.currentStep = PathFinder.currentStep.Previous;
-        }
-        else
-        {
             backStepButton.interactable = false;
         }
-        UpdateRunControllButtonText();
+        Step step = PathFinder.currentStepNode.Value;
+        if (!step.IsAnnounce && step.EntryBlock.Status == step.OldStatus)
+            step.EntryBlock.SetStatus(step.NewStatus);
+        PathFinder.EntryToStep(PathFinder.currentStepNode.Next);
+        yield return new WaitForSeconds(delayTime);
+        step = PathFinder.currentStepNode.Value;
+        if (step.IsAnnounce)
+        {
+            if(step.Text.Contains('*'))
+                TileMap.TransformBlocks(TileStatus.VISITED, TileStatus.NORMAL);
+        }
+        else{
+            if (step.EntryBlock != PathFinder.endBlock)
+                step.EntryBlock.SetStatus(step.NewStatus);
+            else
+                step.EntryBlock.SetStatus(TileStatus.END);
+        }
+        yield return new WaitForSeconds(delayTime);
+            nextStepButton.interactable = false;
+        if (PathFinder.currentStepNode == PathFinder.steps.Last)
+        {
+            visualStatus = VisualStatus.DONECONFIRM;
+            UpdateRunControllButtonText();
+        }
+        if (visualStatus != VisualStatus.RUNNING)
+        {
+            nextStepButton.interactable = PathFinder.currentStepNode != PathFinder.steps.Last;
+            backStepButton.interactable = !PathFinder.isIterativeDepending;
+        }
+    }
+    public void BackStepButtonClicked()
+    {
+        StartCoroutine(BackStep());
+    }
+    public IEnumerator BackStep()
+    {
+        if (visualStatus != VisualStatus.RUNNING)
+        {
+            nextStepButton.interactable = false;
+            backStepButton.interactable = false;
+        }
+        if (visualStatus == VisualStatus.DONECONFIRM)
+        {
+            visualStatus = VisualStatus.IDLE;
+            UpdateRunControllButtonText();
+        }
+        Step step = PathFinder.currentStepNode.Value;
+        PathFinder.EntryToStep(PathFinder.currentStepNode);
+        yield return new WaitForSeconds(delayTime);
+        if (!step.IsAnnounce && step.EntryBlock.Status != step.OldStatus)
+            step.EntryBlock.SetStatus(step.OldStatus);
+        PathFinder.EntryToStep(PathFinder.currentStepNode.Previous);
+        step = PathFinder.currentStepNode.Value;
+        if (!step.IsAnnounce)
+        {
+            if (step.EntryBlock != PathFinder.endBlock)
+                step.EntryBlock.SetStatus(step.NewStatus);
+            else
+                step.EntryBlock.SetStatus(TileStatus.END);
+        }
+        yield return new WaitForSeconds(delayTime);
+        if (visualStatus != VisualStatus.RUNNING)
+        {
+            nextStepButton.interactable = true;
+            backStepButton.interactable = PathFinder.currentStepNode != PathFinder.steps.First;
+        }
     }
     public void RefreshButtonClicked()
     {
-        PathFinder.RefreshPathFinderStatus();
-        tileMap.RefreshMap();
-        UpdateRunControllButtonText();
-        UpdateInteracable(false);
         stepDisplay.RefreshStepDisplay();
+        TileMap.RefreshMap();
+        PathFinder.RefreshPathFinderStatus();
+        UpdateRunControllButtonText();
+        runControllButton.interactable = false;
+        graphSetup.SetInteracable(true);
+        UpdateInteracable(false);
     }
     public void UpdateInteracable(bool status)
     {
-        backStepButton.interactable = status;
-        nextStepButton.interactable = status;
+        backStepButton.interactable = !PathFinder.isIterativeDepending 
+            && PathFinder.currentStepNode != PathFinder.steps.First
+            && status;
+        nextStepButton.interactable = PathFinder.currentStepNode != PathFinder.steps.Last
+            && status;
         refreshButton.interactable = status;
     }
 }

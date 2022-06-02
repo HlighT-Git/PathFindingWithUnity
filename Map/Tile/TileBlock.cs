@@ -2,41 +2,43 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
+using System;
 
 public class TileBlock : MonoBehaviour
 {
     private TextMeshProUGUI costText;
+    private TileCube tileCube;
 
-    private TileCube tilecube;
-    private TileMap tilemap;
-    private TileMap.Node node;
+    private TileMap tileMap;
+    private TileMap.TileNode tileNode;
+    private SearchEntry node;
     private Color status;
 
-    public TileCube Tilecube { get => tilecube; set => tilecube = value; }
-    public TileMap Tilemap { get => tilemap; set => tilemap = value; }
-    public TileMap.Node Node { get => node; set => node = value; }
+    public TileMap TileMap { get => tileMap; set => tileMap = value; }
+    public TileMap.TileNode TileNode { get => tileNode; set => tileNode = value; }
+    public SearchEntry Node { get => node; set => node = value; }
     public Color Status { get => status; set => status = value; }
 
     public void SetStatus(Color status)
     {
         this.status = status;
-        tilecube.SetColorByStatus();
+        tileCube.SetColorByStatus();
     }
     private void Awake()
     {
         costText = transform.GetChild(1).GetChild(0).GetComponent<TextMeshProUGUI>();
-        tilecube = transform.GetChild(0).GetComponent<TileCube>();
+        tileCube = transform.GetChild(0).GetComponent<TileCube>();
     }
-    public void InitTileBlock(TileMap.Node node)
+    public void InitTileBlock(TileMap.TileNode node)
     {
-        this.node = node;
+        this.tileNode = node;
         node.TileBlock = this;
-        status = (Node.Cost != 0) ? TileStatus.NORMAL : TileStatus.UNMOVABLE;
-        if (Node.Cost != 0)
+        status = (TileNode.Cost != 0) ? TileStatus.NORMAL : TileStatus.UNMOVABLE;
+        if (TileNode.Cost != 0)
         {
-            tilecube.OriginalColor = new Color((255 - 50 * Node.Cost) / 255f, 1, 1);
-            costText.text = Node.Cost.ToString();
+            tileCube.OriginalColor = new Color((255 - 50 * TileNode.Cost) / 255f, 1, 1);
+            costText.text = TileNode.Cost.ToString();
         }
-        tilecube.SetColorByStatus();
+        tileCube.SetColorByStatus();
     }
 }

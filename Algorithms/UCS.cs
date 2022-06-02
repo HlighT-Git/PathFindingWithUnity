@@ -1,53 +1,54 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class UCS : MonoBehaviour
 {
     public static LinkedList<Step> steps = new();
-    public static PriorityQueue open;
+    public static PriorityQueue<SearchEntry> open;
     public static Dictionary<TileBlock, TileBlock> parent = new();
-    
+
     public static void FindPath(TileBlock startBlock, TileBlock endBlock)
     {
+        PathFinder.isIterativeDepending = false;
         steps.Clear();
-        open = new();
         parent.Clear();
-        open.Enqueue(startBlock, 0, 0);
+
+        Vector2 startPos = startBlock.TileNode.Index();
+        int startX = Mathf.RoundToInt(startPos.x);
+        int startY = Mathf.RoundToInt(startPos.y);
+        steps.AddLast(new Step($"*** Bắt đầu tại ({startX}, {startY}) ***"));
+        open = new();
+        open.Enqueue(new SearchEntry(startBlock, 0));
         parent[startBlock] = startBlock;
         while (open.Count > 0)
         {
-            TileBlock curBlock = open.Dequeue();
-            if (curBlock != startBlock)
+            SearchEntry curNode = open.Dequeue();
+            if (curNode.Block != startBlock)
             {
-                steps.AddLast(new StepByCost(StepType.VISIT, curBlock, curBlock.Node.SearchCost.Value));
+                steps.AddLast(new PriorityStep(curNode.Block, TileStatus.SEEN, TileStatus.VISITED, curNode.Value));
             }
-            if (curBlock == endBlock)
+            if (curNode.Block == endBlock)
             {
                 return;
             }
-            foreach (TileMap.Node node in curBlock.Node.Neighbours)
+            foreach (TileMap.TileNode tileNode in curNode.Block.TileNode.Neighbours)
             {
-                int costToNext = curBlock.Node.SearchCost.Value + node.Cost;
-                if (!parent.ContainsKey(node.TileBlock))
+                int costToNext = curNode.Value + tileNode.Cost;
+                if (!parent.ContainsKey(tileNode.TileBlock))
                 {
-                    steps.AddLast(new StepByCost(StepType.SEE, node.TileBlock, costToNext));
-                    parent[node.TileBlock] = curBlock;
-                    open.Enqueue(node.TileBlock, costToNext, costToNext);
+                    steps.AddLast(new PriorityStep(tileNode.TileBlock, TileStatus.NORMAL, TileStatus.SEEN, costToNext));
+                    parent[tileNode.TileBlock] = curNode.Block;
+                    open.Enqueue(new(tileNode.TileBlock, costToNext));
                 }
-                else if (node.SearchCost.Value > costToNext)
+                else if (tileNode.TileBlock.Node.Value > costToNext)
                 {
-                    parent[node.TileBlock] = curBlock;
-                    if (open.Contains(node.TileBlock))
-                    {
-                        steps.AddLast(new StepByCost(StepType.SEE, node.TileBlock, costToNext));
-                        node.SearchCost = new KeyValuePair<int, int>(costToNext, costToNext);
-                    }
-                    else
-                    {
-                        steps.AddLast(new StepByCost(StepType.SEEAGAIN, node.TileBlock, costToNext));
-                        open.Enqueue(node.TileBlock, costToNext, costToNext);
-                    }
+                    parent[tileNode.TileBlock] = curNode.Block;
+                    open.Remove(tileNode.TileBlock.Node);
+                    steps.AddLast(new PriorityStep(tileNode.TileBlock,
+                        open.Contains(tileNode.TileBlock.Node) ? TileStatus.SEEN : TileStatus.VISITED, 
+                        TileStatus.SEEN, costToNext));
+                    open.Enqueue(new(tileNode.TileBlock, costToNext));
                 }
             }
         }

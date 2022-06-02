@@ -5,49 +5,45 @@ using UnityEngine;
 public class AStar : MonoBehaviour
 {
     public static LinkedList<Step> steps = new();
-    public static PriorityQueue open;
+    public static PriorityQueue<SearchEntry> open;
     public static Dictionary<TileBlock, TileBlock> parent = new();
     public static void FindPath(TileBlock startBlock, TileBlock endBlock)
     {
+        PathFinder.isIterativeDepending = false;
         steps.Clear();
         open = new();
         parent.Clear();
-        open.Enqueue(startBlock, 0, Heuristic.Between(startBlock, endBlock));
+        open.Enqueue(new(startBlock, 0, Heuristic.Between(startBlock, endBlock)));
         parent[startBlock] = startBlock;
         while (open.Count > 0)
         {
-            TileBlock curBlock = open.Dequeue();
-            if (curBlock != startBlock)
+            SearchEntry curNode = open.Dequeue();
+            if (curNode.Block != startBlock)
             {
-                steps.AddLast(new InformStep(StepType.VISIT, curBlock, curBlock.Node.SearchCost.Key, curBlock.Node.SearchCost.Value));
+                steps.AddLast(new InformStep(curNode.Block, TileStatus.SEEN, TileStatus.VISITED, curNode.GainCost, curNode.Value));
             }
-            if (curBlock == endBlock)
+            if (curNode.Block == endBlock)
             {
                 return;
             }
-            foreach (TileMap.Node node in curBlock.Node.Neighbours)
+            foreach (TileMap.TileNode tileNode in curNode.Block.TileNode.Neighbours)
             {
-                int tmpCost = curBlock.Node.SearchCost.Key + node.Cost;
-                int evaluation = tmpCost + Heuristic.Between(node.TileBlock, endBlock);
-                if (!parent.ContainsKey(node.TileBlock))
+                int gainCost = curNode.GainCost + tileNode.Cost;
+                int value = gainCost + Heuristic.Between(tileNode.TileBlock, endBlock);
+                if (!parent.ContainsKey(tileNode.TileBlock))
                 {
-                    steps.AddLast(new InformStep(StepType.SEE, node.TileBlock, tmpCost, evaluation));
-                    parent[node.TileBlock] = curBlock;
-                    open.Enqueue(node.TileBlock, tmpCost, evaluation);
+                    steps.AddLast(new InformStep(tileNode.TileBlock, TileStatus.NORMAL, TileStatus.SEEN, gainCost, value));
+                    parent[tileNode.TileBlock] = curNode.Block;
+                    open.Enqueue(new(tileNode.TileBlock, gainCost, value));
                 }
-                else if (node.SearchCost.Value > evaluation)
+                else if (tileNode.TileBlock.Node.Value > value)
                 {
-                    parent[node.TileBlock] = curBlock;
-                    if (open.Contains(node.TileBlock))
-                    {
-                        steps.AddLast(new InformStep(StepType.SEE, node.TileBlock, tmpCost, evaluation));
-                        node.SearchCost = new KeyValuePair<int, int>(tmpCost, evaluation);
-                    }
-                    else
-                    {
-                        steps.AddLast(new InformStep(StepType.SEEAGAIN, node.TileBlock, tmpCost, evaluation));
-                        open.Enqueue(node.TileBlock, tmpCost, evaluation);
-                    }
+                    parent[tileNode.TileBlock] = curNode.Block;
+                    open.Remove(tileNode.TileBlock.Node);
+                    steps.AddLast(new InformStep(tileNode.TileBlock,
+                        open.Contains(tileNode.TileBlock.Node) ? TileStatus.SEEN : TileStatus.VISITED,
+                        TileStatus.SEEN, gainCost, value));
+                    open.Enqueue(new(tileNode.TileBlock, gainCost, value));
                 }
             }
         }

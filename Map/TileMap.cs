@@ -10,24 +10,29 @@ public class TileMap : MonoBehaviour
     public static int mapRootX;
     public static int mapRootY;
     public static bool isWeightGraphMap;
-    private static Node[,] graph;
-    public static Node[,] Graph { get => graph; set => graph = value; }
+    private static TileNode[,] graph;
+    public static TileNode[,] Graph { get => graph; set => graph = value; }
     public static Vector2 GetGraphIndexByCoordinates(float x, float y)
     {
         return new Vector2(x - mapRootX, y - mapRootY);
     }
-    public class Node
+    public class TileNode
     {
         private TileBlock tileBlock;
-        private List<Node> neighbours;
+        private List<TileNode> neighbours;
         private Vector3 position;
         private int cost;
         private int[,] costTo;
-        private KeyValuePair<int, int> searchCost;
 
-        public Node(int cost)
+        public TileBlock TileBlock { get => tileBlock; set => tileBlock = value; }
+        public List<TileNode> Neighbours { get => neighbours; set => neighbours = value; }
+        public Vector3 Position { get => position; set => position = value; }
+        public int Cost { get => cost; set => cost = value; }
+        public int[,] CostTo { get => costTo; set => costTo = value; }
+
+        public TileNode(int cost)
         {
-            neighbours = new List<Node>();
+            neighbours = new();
             this.cost = cost;
             costTo = new int[mapSizeX, mapSizeY];
         }
@@ -49,7 +54,7 @@ public class TileMap : MonoBehaviour
         {
             if (x < 0 || y < 0 ||
                 x > mapSizeX - 1 ||
-                y > mapSizeY - 1 || 
+                y > mapSizeY - 1 ||
                 i < 0 || j < 0 ||
                 i > mapSizeX - 1 ||
                 j > mapSizeY - 1 ||
@@ -67,7 +72,7 @@ public class TileMap : MonoBehaviour
             if (cost > 0)
             {
                 cost = 0;
-                foreach(Node ele in neighbours)
+                foreach (TileNode ele in neighbours)
                 {
                     ele.Neighbours.Remove(this);
                 }
@@ -91,16 +96,9 @@ public class TileMap : MonoBehaviour
             }
             tileBlock.InitTileBlock(this);
         }
-        public TileBlock TileBlock { get => tileBlock; set => tileBlock = value; }
-        public List<Node> Neighbours { get => neighbours; set => neighbours = value; }
-        public Vector3 Position { get => position; set => position = value; }
-        public int Cost { get => cost; set => cost = value; }
-        public int[,] CostTo { get => costTo; set => costTo = value; }
-        public KeyValuePair<int, int> SearchCost { get => searchCost; set => searchCost = value; }
     }
     [SerializeReference] private GameObject tileVisualPrefab;
     [SerializeReference] private GameObject player;
-    //[SerializeReference] private GameObject graphSetup;
     [SerializeReference] private PathFinder pathFinder;
     [SerializeReference] private VisualController visualController;
     public GameObject Player { get => player; set => player = value; }
@@ -109,7 +107,7 @@ public class TileMap : MonoBehaviour
     public static int MoveableBlockAmount()
     {
         int cnt = 0;
-        foreach(Node node in graph)
+        foreach(TileNode node in graph)
         {
             if (node.Cost != 0)
             {
@@ -136,13 +134,13 @@ public class TileMap : MonoBehaviour
     }
     void Start()
     {
-        GenerateMap(10, 10, true);
+        //GenerateMap(10, 10, true);
     }
     private void GenerateMapData()
     {
         mapRootX = - mapSizeX / 2;
         mapRootY = - mapSizeY / 2;
-        graph = new Node[mapSizeX, mapSizeY];
+        graph = new TileNode[mapSizeX, mapSizeY];
         for (int x = 0; x < mapSizeX; x++)
         {
             for (int y = 0; y < mapSizeY; y++)
@@ -152,7 +150,7 @@ public class TileMap : MonoBehaviour
                 {
                     cost = 1;
                 }
-                graph[x, y] = new Node(cost);
+                graph[x, y] = new TileNode(cost);
             }
         }
     }
@@ -202,16 +200,23 @@ public class TileMap : MonoBehaviour
             }
         }
     }
-    public void RefreshMap()
+    public static void RefreshMap()
     {
-        for (int x = 0; x < mapSizeX; x++)
+        foreach(TileNode node in graph)
         {
-            for (int y = 0; y < mapSizeY; y++)
+            if (node.Cost != 0)
             {
-                if (graph[x, y].Cost != 0)
-                {
-                    graph[x, y].TileBlock.SetStatus(TileStatus.NORMAL);
-                }
+                node.TileBlock.SetStatus(TileStatus.NORMAL);
+            }
+        }
+    }
+    public static void TransformBlocks(Color oldStatus, Color newStatus)
+    {
+        foreach (TileNode node in graph)
+        {
+            if (node.TileBlock.Status == oldStatus)
+            {
+                node.TileBlock.SetStatus(newStatus);
             }
         }
     }
@@ -226,7 +231,7 @@ public class TileMap : MonoBehaviour
                     , new Vector3(graph[x, y].Position.x, graph[x, y].Position.y), Quaternion.identity);
                 go.transform.parent = gameObject.transform;
                 TileBlock tb = go.GetComponent<TileBlock>();
-                tb.Tilemap = this;
+                tb.TileMap = this;
                 tb.InitTileBlock(graph[x, y]);
             }
         }

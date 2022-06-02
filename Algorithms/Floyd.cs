@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Floyd
 {
-    private static bool IsNextToEachOther(TileMap.Node node1, TileMap.Node node2)
+    private static bool IsNextToEachOther(TileMap.TileNode node1, TileMap.TileNode node2)
     {
         int subX = (int)(node1.Position.x - node2.Position.x);
         int subY = (int)(node1.Position.y - node2.Position.y);
